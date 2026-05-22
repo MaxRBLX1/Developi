@@ -6,7 +6,7 @@
     "created_at": "",
     "modified_at": "",
     "block_count": 4,
-    "connection_count": 5,
+    "connection_count": 3,
     "description": ""
   },
   "canvas": {
@@ -18,41 +18,41 @@
   },
   "blocks": [
     {
-      "id": 4,
+      "id": 0,
       "block_name": "String",
       "category": "Data",
-      "position_x": 400.0,
+      "position_x": 320.0,
       "position_y": 180.0,
       "size_x": 200.0,
       "size_y": 100.0,
-      "custom_code": "[\"Hello\"]"
+      "custom_code": "[\"MaxRBLX1\"]"
     },
     {
-      "id": 6,
+      "id": 2,
       "block_name": "Write File",
       "category": "File System",
-      "position_x": 680.0,
-      "position_y": 260.0,
+      "position_x": 600.0,
+      "position_y": 180.0,
       "size_x": 200.0,
       "size_y": 100.0,
       "custom_code": "[\"developi_output.txt\",\"developi was here\"]"
     },
     {
-      "id": 7,
+      "id": 3,
       "block_name": "Read File",
       "category": "File System",
-      "position_x": 940.0,
+      "position_x": 840.0,
       "position_y": 180.0,
       "size_x": 200.0,
       "size_y": 100.0,
       "custom_code": "[\"developi_test.txt\"]"
     },
     {
-      "id": 8,
+      "id": 4,
       "block_name": "Print",
       "category": "Debug",
-      "position_x": 1180.0,
-      "position_y": 180.0,
+      "position_x": 1080.0,
+      "position_y": 220.0,
       "size_x": 200.0,
       "size_y": 100.0,
       "custom_code": "[\"Hello from developi\"]"
@@ -61,37 +61,23 @@
   "connections": [
     {
       "id": 0,
-      "from_block_id": 4,
+      "from_block_id": 0,
       "from_port": "0",
-      "to_block_id": 6,
+      "to_block_id": 2,
       "to_port": "1"
     },
     {
-      "id": 0,
-      "from_block_id": 6,
+      "id": 1,
+      "from_block_id": 2,
       "from_port": "0",
-      "to_block_id": 7,
+      "to_block_id": 3,
       "to_port": "0"
     },
     {
-      "id": 0,
-      "from_block_id": 4,
+      "id": 2,
+      "from_block_id": 3,
       "from_port": "0",
-      "to_block_id": 7,
-      "to_port": "0"
-    },
-    {
-      "id": 0,
-      "from_block_id": 7,
-      "from_port": "0",
-      "to_block_id": 8,
-      "to_port": "0"
-    },
-    {
-      "id": 8,
-      "from_block_id": 7,
-      "from_port": "1",
-      "to_block_id": 8,
+      "to_block_id": 4,
       "to_port": "0"
     }
   ],

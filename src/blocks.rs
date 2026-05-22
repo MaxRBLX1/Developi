@@ -313,9 +313,9 @@ result = os.getpid()
         outputs: vec![output("handle_info", "string"), output("path", "string"), output("mode", "string")],
         python_template: r#"
 import os
-_path = os.path.join(os.getcwd(), "{{path}}")
-_mode = "{{mode}}"
-f = open(_path, _mode)
+_path = os.path.join(os.getcwd(), """{{path}}""")
+_mode = """{{mode}}"""
+f = open(_path, _mode, encoding="utf-8")
 f.write("developi 1.0 was here")
 f.close()
 result = _path
@@ -329,9 +329,9 @@ result = _path
         outputs: vec![output("content", "string"), output("path", "string")],
         python_template: r#"
 import os
-_path = os.path.join(os.getcwd(), "{{path}}")
+_path = os.path.join(os.getcwd(), """{{path}}""")
 if os.path.exists(_path):
-    with open(_path, "r") as f:
+    with open(_path, "r", encoding="utf-8") as f:
         result = f.read()
 else:
     result = ""
@@ -345,9 +345,9 @@ else:
         outputs: vec![output("path", "string"), output("data", "string")],
         python_template: r#"
 import os
-_path = os.path.join(os.getcwd(), "{{path}}")
-_data = "{{data}}"
-with open(_path, "a") as f:
+_path = os.path.join(os.getcwd(), """{{path}}""")
+_data = """{{data}}"""
+with open(_path, "a", encoding="utf-8") as f:
     f.write(_data + "\n")
 result = _path
 "#.into(),
@@ -360,9 +360,9 @@ result = _path
         outputs: vec![output("position", "number"), output("path", "string")],
         python_template: r#"
 import os
-_path = os.path.join(os.getcwd(), "{{path}}")
+_path = os.path.join(os.getcwd(), """{{path}}""")
 whence_map = {"start": 0, "current": 1, "end": 2}
-w = whence_map.get("{{whence}}", 0)
+w = whence_map.get("""{{whence}}""", 0)
 if os.path.exists(_path):
     f = open(_path, "rb")
     f.seek({{position}}, w)
@@ -388,7 +388,7 @@ else:
         outputs: vec![output("listing", "string"), output("path", "string")],
         python_template: r#"
 import os
-_path = "{{path}}" if "{{path}}" != "." else os.getcwd()
+_path = """{{path}}""" if """{{path}}""" != "." else os.getcwd()
 items = os.listdir(_path)
 result = str(items)
 "#.into(),
@@ -401,7 +401,7 @@ result = str(items)
         outputs: vec![output("exists", "bool"), output("path", "string")],
         python_template: r#"
 import os
-_path = os.path.join(os.getcwd(), "{{path}}")
+_path = os.path.join(os.getcwd(), """{{path}}""")
 result = os.path.exists(_path)
 "#.into(),
     });
@@ -413,7 +413,7 @@ result = os.path.exists(_path)
         outputs: vec![output("success", "bool"), output("path", "string")],
         python_template: r#"
 import os
-_path = os.path.join(os.getcwd(), "{{path}}")
+_path = os.path.join(os.getcwd(), """{{path}}""")
 if os.path.exists(_path):
     os.remove(_path)
     result = True
@@ -429,7 +429,7 @@ else:
         outputs: vec![output("path", "string")],
         python_template: r#"
 import os
-new_dir = os.path.join(os.getcwd(), "{{path}}")
+new_dir = os.path.join(os.getcwd(), """{{path}}""")
 os.makedirs(new_dir, exist_ok=True)
 result = new_dir
 "#.into(),
@@ -442,7 +442,7 @@ result = new_dir
         outputs: vec![output("info", "string"), output("path", "string")],
         python_template: r#"
 import os
-_path = "{{path}}" if "{{path}}" != "." else os.getcwd()
+_path = """{{path}}""" if """{{path}}""" != "." else os.getcwd()
 stat = os.stat(_path)
 result = str(stat.st_size)
 "#.into(),
@@ -457,7 +457,7 @@ result = str(stat.st_size)
         outputs: vec![output("fd", "number"), output("type", "string")],
         python_template: r#"
 import socket
-_type = "{{type}}"
+_type = """{{type}}"""
 sock_type = socket.SOCK_STREAM if _type == "tcp" else socket.SOCK_DGRAM
 s = socket.socket(socket.AF_INET, sock_type)
 result = s.fileno()
@@ -472,7 +472,7 @@ s.close()
         outputs: vec![output("bound_port", "number"), output("address", "string")],
         python_template: r#"
 import socket
-_addr = "{{address}}"
+_addr = """{{address}}"""
 _port = {{port}}
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.bind((_addr, _port))
@@ -488,7 +488,7 @@ s.close()
         outputs: vec![output("connected", "bool"), output("address", "string"), output("port", "number")],
         python_template: r#"
 import socket
-_addr = "{{address}}"
+_addr = """{{address}}"""
 _port = {{port}}
 _timeout = {{timeout}}
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -510,9 +510,9 @@ finally:
         outputs: vec![output("bytes_sent", "number"), output("address", "string"), output("port", "number")],
         python_template: r#"
 import socket
-_addr = "{{address}}"
+_addr = """{{address}}"""
 _port = {{port}}
-_data = "{{data}}".encode('utf-8')
+_data = """{{data}}""".encode('utf-8')
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.settimeout(3)
 try:
@@ -532,7 +532,7 @@ finally:
         outputs: vec![output("received", "string"), output("address", "string"), output("port", "number")],
         python_template: r#"
 import socket
-_addr = "{{address}}"
+_addr = """{{address}}"""
 _port = {{port}}
 _buf = {{buffer_size}}
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -622,20 +622,20 @@ srv.close()
         name: "String".into(), icon: "📝".into(), category: "Data".into(),
         description: "Create a text string.".into(),
         inputs: vec![input("text", "string", "Hello from developi")], outputs: vec![output("text", "string")],
-        python_template: r#"result = "{{text}}""#.into(),
+        python_template: r#"result = """{{text}}""" "#.into(),
     });
     b.push(BlockDefinition {
         name: "Bytes".into(), icon: "💾".into(), category: "Data".into(),
         description: "Create raw bytes from a hex string.".into(),
         inputs: vec![input("hex", "string", "00010203FFFE")], outputs: vec![output("data", "bytes")],
-        python_template: r#"result = bytes.fromhex("{{hex}}")"#.into(),
+        python_template: r#"result = bytes.fromhex("""{{hex}}""")"#.into(),
     });
     b.push(BlockDefinition {
         name: "List".into(), icon: "📋".into(), category: "Data".into(),
         description: "Create a list from comma-separated values.".into(),
         inputs: vec![input("items", "string", "1, 2, 3, 4, 5")], outputs: vec![output("list", "any")],
         python_template: r#"
-items = [x.strip() for x in "{{items}}".split(",")]
+items = [x.strip() for x in """{{items}}""".split(",")]
 try:
     items = [int(x) if x.lstrip('-').isdigit() else float(x) if x.replace('.','',1).replace('-','',1).isdigit() else x for x in items]
 except: pass
@@ -648,7 +648,7 @@ result = items
         inputs: vec![input("json", "string", "{\"name\": \"developi\", \"version\": 1.0}")], outputs: vec![output("dict", "any")],
         python_template: r#"
 import json
-result = json.loads('{{json}}')
+result = json.loads('''{{json}}''')
 "#.into(),
     });
     b.push(BlockDefinition {
@@ -658,8 +658,8 @@ result = json.loads('{{json}}')
         outputs: vec![output("packed", "bytes"), output("format", "string")],
         python_template: r#"
 import struct
-_fmt = "{{format}}"
-vals = [x.strip() for x in "{{values}}".split(",")]
+_fmt = """{{format}}"""
+vals = [x.strip() for x in """{{values}}""".split(",")]
 packed = struct.pack(_fmt, *[v.encode() if isinstance(v, str) and len(v) <= 4 else float(v) if '.' in v else int(v) for v in vals])
 result = packed.hex()
 "#.into(),
@@ -671,8 +671,8 @@ result = packed.hex()
         outputs: vec![output("values", "string"), output("format", "string")],
         python_template: r#"
 import struct
-_fmt = "{{format}}"
-data = bytes.fromhex("{{hex_data}}") if "{{hex_data}}" else struct.pack('<I4sf', 42, b'DEVI', 3.14)
+_fmt = """{{format}}"""
+data = bytes.fromhex("""{{hex_data}}""") if """{{hex_data}}""" else struct.pack('<I4sf', 42, b'DEVI', 3.14)
 unpacked = struct.unpack(_fmt, data)
 result = str(unpacked)
 "#.into(),
@@ -683,8 +683,8 @@ result = str(unpacked)
         inputs: vec![input("text", "string", "developi"), input("encoding", "string", "utf-8")],
         outputs: vec![output("encoded", "bytes"), output("encoding", "string")],
         python_template: r#"
-_enc = "{{encoding}}"
-result = "{{text}}".encode(_enc).hex()
+_enc = """{{encoding}}"""
+result = """{{text}}""".encode(_enc).hex()
 "#.into(),
     });
     b.push(BlockDefinition {
@@ -693,8 +693,8 @@ result = "{{text}}".encode(_enc).hex()
         inputs: vec![input("hex", "string", "646576656c6f7069"), input("encoding", "string", "utf-8")],
         outputs: vec![output("text", "string"), output("encoding", "string")],
         python_template: r#"
-_enc = "{{encoding}}"
-result = bytes.fromhex("{{hex}}").decode(_enc)
+_enc = """{{encoding}}"""
+result = bytes.fromhex("""{{hex}}""").decode(_enc)
 "#.into(),
     });
     b.push(BlockDefinition {
@@ -703,7 +703,7 @@ result = bytes.fromhex("{{hex}}").decode(_enc)
         inputs: vec![input("data", "string", "0,1,2,3,4,5,6,7,8,9"), input("start", "number", "0"), input("end", "number", "5"), input("step", "number", "1")],
         outputs: vec![output("sliced", "any")],
         python_template: r#"
-data = [x.strip() for x in "{{data}}".split(",")]
+data = [x.strip() for x in """{{data}}""".split(",")]
 result = data[{{start}}:{{end}}:{{step}}]
 "#.into(),
     });
@@ -712,7 +712,7 @@ result = data[{{start}}:{{end}}:{{step}}]
         description: "Get the length of any collection.".into(),
         inputs: vec![input("data", "string", "1,2,3,4,5")], outputs: vec![output("length", "number")],
         python_template: r#"
-data = [x.strip() for x in "{{data}}".split(",")]
+data = [x.strip() for x in """{{data}}""".split(",")]
 result = len(data)
 "#.into(),
     });
@@ -724,7 +724,7 @@ result = len(data)
         description: "Branch based on a boolean condition.".into(),
         inputs: vec![input("condition", "bool", "true")], outputs: vec![output("branch", "string")],
         python_template: r#"
-cond = str("{{condition}}").lower() == "true"
+cond = str("""{{condition}}""").lower() == "true"
 result = cond
 "#.into(),
     });
@@ -734,13 +734,13 @@ result = cond
         inputs: vec![input("a", "any", "42"), input("b", "any", "24"), input("op", "string", ">")],
         outputs: vec![output("result", "bool"), output("a", "any"), output("b", "any")],
         python_template: r#"
-a = "{{a}}"; b = "{{b}}"
+a = """{{a}}"""; b = """{{b}}"""
 try:
     a = float(a) if a.replace('.','',1).replace('-','',1).isdigit() else a
     b = float(b) if b.replace('.','',1).replace('-','',1).isdigit() else b
 except: pass
 ops = {"==": lambda x,y: x==y, "!=": lambda x,y: x!=y, ">": lambda x,y: x>y, "<": lambda x,y: x<y, ">=": lambda x,y: x>=y, "<=": lambda x,y: x<=y}
-result = ops.get("{{op}}", ops["=="])(a, b)
+result = ops.get("""{{op}}""", ops["=="])(a, b)
 "#.into(),
     });
     b.push(BlockDefinition {
@@ -748,27 +748,27 @@ result = ops.get("{{op}}", ops["=="])(a, b)
         description: "Logical AND. True only if both inputs are true.".into(),
         inputs: vec![input("a", "bool", "true"), input("b", "bool", "true")],
         outputs: vec![output("result", "bool"), output("a", "bool"), output("b", "bool")],
-        python_template: r#"result = str("{{a}}").lower()=="true" and str("{{b}}").lower()=="true""#.into(),
+        python_template: r#"result = str("""{{a}}""").lower()=="true" and str("""{{b}}""").lower()=="true""#.into(),
     });
     b.push(BlockDefinition {
         name: "Or".into(), icon: "🔀".into(), category: "Logic".into(),
         description: "Logical OR. True if at least one input is true.".into(),
         inputs: vec![input("a", "bool", "true"), input("b", "bool", "false")],
         outputs: vec![output("result", "bool"), output("a", "bool"), output("b", "bool")],
-        python_template: r#"result = str("{{a}}").lower()=="true" or str("{{b}}").lower()=="true""#.into(),
+        python_template: r#"result = str("""{{a}}""").lower()=="true" or str("""{{b}}""").lower()=="true""#.into(),
     });
     b.push(BlockDefinition {
         name: "Not".into(), icon: "🚫".into(), category: "Logic".into(),
         description: "Logical NOT. Inverts the input boolean.".into(),
         inputs: vec![input("value", "bool", "false")], outputs: vec![output("result", "bool")],
-        python_template: r#"result = not (str("{{value}}").lower() == "true")"#.into(),
+        python_template: r#"result = not (str("""{{value}}""").lower() == "true")"#.into(),
     });
     b.push(BlockDefinition {
         name: "For Each".into(), icon: "🔄".into(), category: "Logic".into(),
         description: "Loop through each item in a list and apply an operation.".into(),
         inputs: vec![input("items", "string", "a, b, c, d")], outputs: vec![output("results", "string")],
         python_template: r#"
-items = [x.strip() for x in "{{items}}".split(",")]
+items = [x.strip() for x in """{{items}}""".split(",")]
 result = str([item.upper() for item in items])
 "#.into(),
     });
@@ -806,7 +806,7 @@ result = found if found else -1
         description: "Generate even numbers, optionally skipping odd values.".into(),
         inputs: vec![input("skip_odd", "bool", "true")], outputs: vec![output("evens", "string")],
         python_template: r#"
-skip = str("{{skip_odd}}").lower() == "true"
+skip = str("""{{skip_odd}}""").lower() == "true"
 evens = [i for i in range(20) if not (skip and i % 2 != 0)]
 result = str(evens)
 "#.into(),
@@ -879,8 +879,8 @@ result = str(evens)
         inputs: vec![input("name", "string", "my_var"), input("value", "any", "Hello")],
         outputs: vec![output("value", "any"), output("name", "string")],
         python_template: r#"
-{{name}} = "{{value}}"
-result = "{{value}}"
+{{name}} = """{{value}}"""
+result = """{{value}}"""
 "#.into(),
     });
     b.push(BlockDefinition {
@@ -889,7 +889,7 @@ result = "{{value}}"
         inputs: vec![input("name", "string", "my_var")],
         outputs: vec![output("value", "any"), output("name", "string")],
         python_template: r#"
-_name = "{{name}}"
+_name = """{{name}}"""
 try:
     if _name in dir(): result = eval(_name)
     else: result = ""
@@ -902,7 +902,7 @@ except: result = ""
         inputs: vec![input("name", "string", "my_var")],
         outputs: vec![output("success", "bool"), output("name", "string")],
         python_template: r#"
-_name = "{{name}}"
+_name = """{{name}}"""
 if _name in dir(): del {{name}}; result = True
 else: result = False
 "#.into(),
@@ -913,7 +913,7 @@ else: result = False
         inputs: vec![input("name", "string", "my_var")],
         outputs: vec![output("exists", "bool"), output("name", "string")],
         python_template: r#"
-_name = "{{name}}"
+_name = """{{name}}"""
 result = _name in dir()
 "#.into(),
     });
@@ -926,8 +926,8 @@ result = _name in dir()
         inputs: vec![input("name", "string", "my_func"), input("params", "string", "x"), input("body", "string", "return x * 2")],
         outputs: vec![output("name", "string"), output("params", "string")],
         python_template: r#"
-_name = "{{name}}"
-_params = "{{params}}"
+_name = """{{name}}"""
+_params = """{{params}}"""
 exec(f"def {_name}({_params}):\n    {{body}}")
 result = _name
 "#.into(),
@@ -938,7 +938,7 @@ result = _name
         inputs: vec![input("name", "string", "my_func"), input("args", "string", "5")],
         outputs: vec![output("result", "any"), output("name", "string")],
         python_template: r#"
-_name = "{{name}}"
+_name = """{{name}}"""
 try: result = eval(f"{_name}({{args}})")
 except: result = ""
 "#.into(),
@@ -947,7 +947,7 @@ except: result = ""
         name: "Return".into(), icon: "↩️".into(), category: "Functions".into(),
         description: "Return a value from the current block.".into(),
         inputs: vec![input("value", "any", "done")], outputs: vec![output("result", "any")],
-        python_template: r#"result = "{{value}}""#.into(),
+        python_template: r#"result = """{{value}}""" "#.into(),
     });
     b.push(BlockDefinition {
         name: "Lambda".into(), icon: "λ".into(), category: "Functions".into(),
@@ -955,8 +955,8 @@ except: result = ""
         inputs: vec![input("args", "string", "x"), input("expr", "string", "x * 2"), input("apply_to", "number", "5")],
         outputs: vec![output("result", "any"), output("args", "string"), output("expr", "string")],
         python_template: r#"
-_args = "{{args}}"
-_expr = "{{expr}}"
+_args = """{{args}}"""
+_expr = """{{expr}}"""
 f = lambda {{args}}: {{expr}}
 result = f({{apply_to}})
 "#.into(),
@@ -984,7 +984,7 @@ result = square(_base)
         inputs: vec![input("module", "string", "math")], outputs: vec![output("module_name", "string")],
         python_template: r#"
 import importlib
-_mod = "{{module}}"
+_mod = """{{module}}"""
 mod = importlib.import_module(_mod)
 result = _mod
 "#.into(),
@@ -993,13 +993,13 @@ result = _mod
         name: "Exec Python".into(), icon: "▶️".into(), category: "Python Power".into(),
         description: "Execute arbitrary Python code. Returns any result.".into(),
         inputs: vec![input("code", "string", "result = sum(range(10))")], outputs: vec![output("result", "any")],
-        python_template: r#"exec("{{code}}")"#.into(),
+        python_template: r#"exec("""{{code}}""")"#.into(),
     });
     b.push(BlockDefinition {
         name: "Eval".into(), icon: "🧮".into(), category: "Python Power".into(),
         description: "Evaluate a Python expression. Returns the result.".into(),
         inputs: vec![input("expression", "string", "2 + 2")], outputs: vec![output("result", "any")],
-        python_template: r#"result = eval("{{expression}}")"#.into(),
+        python_template: r#"result = eval("""{{expression}}""")"#.into(),
     });
     b.push(BlockDefinition {
         name: "Try".into(), icon: "🛡️".into(), category: "Python Power".into(),
@@ -1007,7 +1007,7 @@ result = _mod
         inputs: vec![input("code", "string", "result = 100 / 0")],
         outputs: vec![output("result", "any"), output("error", "string")],
         python_template: r#"
-try: exec("{{code}}")
+try: exec("""{{code}}""")
 except Exception as e: result = str(e)
 "#.into(),
     });
@@ -1017,7 +1017,7 @@ except Exception as e: result = str(e)
         inputs: vec![input("message", "string", "Something went wrong")],
         outputs: vec![output("error", "string"), output("message", "string")],
         python_template: r#"
-_msg = "{{message}}"
+_msg = """{{message}}"""
 try: raise ValueError(_msg)
 except ValueError as e: result = str(e)
 "#.into(),
@@ -1028,8 +1028,8 @@ except ValueError as e: result = str(e)
         inputs: vec![input("value", "any", "42"), input("target_type", "string", "int")],
         outputs: vec![output("converted", "any"), output("target_type", "string")],
         python_template: r#"
-_val = "{{value}}"
-_tgt = "{{target_type}}"
+_val = """{{value}}"""
+_tgt = """{{target_type}}"""
 types = {"int": int, "float": float, "str": str, "bool": bool, "list": list, "bytes": bytes}
 t = types.get(_tgt, str)
 result = t(_val)
@@ -1039,7 +1039,7 @@ result = t(_val)
         name: "Type Of".into(), icon: "🏷️".into(), category: "Python Power".into(),
         description: "Get the Python type name of a value.".into(),
         inputs: vec![input("value", "any", "hello")], outputs: vec![output("type", "string")],
-        python_template: r#"result = type("{{value}}").__name__"#.into(),
+        python_template: r#"result = type("""{{value}}""").__name__"#.into(),
     });
     b.push(BlockDefinition {
         name: "Await".into(), icon: "⏳".into(), category: "Python Power".into(),
@@ -1062,7 +1062,7 @@ except: result = "ready"
         inputs: vec![input("path", "string", "kernel32.dll")], outputs: vec![output("loaded", "string")],
         python_template: r#"
 import ctypes
-_path = "{{path}}"
+_path = """{{path}}"""
 try:
     lib = ctypes.CDLL(_path)
     result = _path
@@ -1076,8 +1076,8 @@ except: result = ""
         outputs: vec![output("result", "any"), output("library", "string"), output("function", "string")],
         python_template: r#"
 import ctypes, sys
-_lib = "{{library}}"
-_func = "{{function}}"
+_lib = """{{library}}"""
+_func = """{{function}}"""
 try:
     if sys.platform == 'win32':
         lib = ctypes.WinDLL(_lib, use_last_error=True)
@@ -1095,7 +1095,7 @@ except: result = 0
         outputs: vec![output("size", "number"), output("fields", "string")],
         python_template: r#"
 import ctypes
-_fields = "{{fields}}"
+_fields = """{{fields}}"""
 result = ctypes.sizeof(ctypes.c_int) * 3
 "#.into(),
     });
@@ -1105,7 +1105,7 @@ result = ctypes.sizeof(ctypes.c_int) * 3
         inputs: vec![input("object_name", "string", "developi")],
         outputs: vec![output("address", "number"), output("object_name", "string")],
         python_template: r#"
-_obj = "{{object_name}}"
+_obj = """{{object_name}}"""
 result = id(_obj)
 "#.into(),
     });
@@ -1145,8 +1145,9 @@ else: result = os.getpid()
         description: "Print any value to the console output.".into(),
         inputs: vec![input("value", "any", "Hello from developi")], outputs: vec![],
         python_template: r#"
-print("{{value}}")
-result = "{{value}}"
+_print_val = """{{value}}"""
+print(_print_val)
+result = _print_val
 "#.into(),
     });
     b.push(BlockDefinition {
@@ -1155,8 +1156,8 @@ result = "{{value}}"
         inputs: vec![input("condition", "string", "2 + 2 == 4"), input("message", "string", "Assertion failed")],
         outputs: vec![output("result", "bool"), output("condition", "string"), output("message", "string")],
         python_template: r#"
-_cond = "{{condition}}"
-_msg = "{{message}}"
+_cond = """{{condition}}"""
+_msg = """{{message}}"""
 try:
     assert eval(_cond), _msg
     result = True
@@ -1196,8 +1197,8 @@ else:
         outputs: vec![output("message", "string"), output("level", "string")],
         python_template: r#"
 import time
-_lvl = "{{level}}"
-_msg = "{{message}}"
+_lvl = """{{level}}"""
+_msg = """{{message}}"""
 timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
 result = f"[{timestamp}] [{_lvl}] {_msg}"
 "#.into(),
