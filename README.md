@@ -118,7 +118,7 @@ This project was a joke that turn real but it helps people build things
 ## Links
 
 - 🌐 GitHub: [github.com/MaxRBLX1/developi](https://github.com/MaxRBLX1/developi)
-- 📁 Templates: [github.com/MaxRBLX1/developi/templates](https://github.com/MaxRBLX1/developi/templates) (Github Repo In Progress)
+- 📁 Templates: [github.com/MaxRBLX1/developi/templates](https://github.com/MaxRBLX1/developi/templates)
 
 ---
 
