@@ -185,14 +185,31 @@ pub fn add_block_with_id(&mut self, definition: BlockDefinition, id: u64) {
     pub fn restore_connections(&mut self, snapshots: &[crate::project::ConnectionSnapshot]) {
     self.connections.clear();
     for snap in snapshots {
-        let from_port_index = self.blocks.iter()
-            .find(|b| b.id == snap.from_block_id)
-            .and_then(|b| b.definition.outputs.iter().position(|p| p.name == snap.from_port))
-            .unwrap_or(0);
-        let to_port_index = self.blocks.iter()
-            .find(|b| b.id == snap.to_block_id)
-            .and_then(|b| b.definition.inputs.iter().position(|p| p.name == snap.to_port))
-            .unwrap_or(0);
+        // Find from_block and to_block
+        let from_block = self.blocks.iter().find(|b| b.id == snap.from_block_id);
+        let to_block = self.blocks.iter().find(|b| b.id == snap.to_block_id);
+        
+        let from_port_index = if let Some(block) = from_block {
+            // Try to parse from_port as a number first (index), then as a name
+            snap.from_port.parse::<usize>().unwrap_or_else(|_| {
+                block.definition.outputs.iter()
+                    .position(|p| p.name == snap.from_port)
+                    .unwrap_or(0)
+            })
+        } else {
+            0
+        };
+        
+        let to_port_index = if let Some(block) = to_block {
+            snap.to_port.parse::<usize>().unwrap_or_else(|_| {
+                block.definition.inputs.iter()
+                    .position(|p| p.name == snap.to_port)
+                    .unwrap_or(0)
+            })
+        } else {
+            0
+        };
+        
         self.connections.push(Connection {
             id: self.next_conn_id,
             from_block: snap.from_block_id,
