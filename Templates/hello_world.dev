@@ -1,0 +1,46 @@
+{
+  "metadata": {
+    "name": "developi_project",
+    "version": "1.0",
+    "developi_version": "1.0",
+    "created_at": "",
+    "modified_at": "",
+    "block_count": 1,
+    "connection_count": 0,
+    "description": ""
+  },
+  "canvas": {
+    "zoom": 1.0,
+    "view_offset_x": 0.0,
+    "view_offset_y": 0.0,
+    "grid_size": 20.0,
+    "grid_visible": true
+  },
+  "blocks": [
+    {
+      "id": 0,
+      "block_name": "Print",
+      "category": "Debug",
+      "position_x": 540.0,
+      "position_y": 180.0,
+      "size_x": 200.0,
+      "size_y": 100.0,
+      "custom_code": "[\"Hello World!!!\"]"
+    }
+  ],
+  "connections": [],
+  "variables": [],
+  "sensory": {
+    "ambient_sound_path": null,
+    "block_place_sound_path": null,
+    "execution_start_sound_path": null,
+    "execution_complete_sound_path": null,
+    "error_sound_path": null,
+    "connection_sound_path": null,
+    "disconnect_sound_path": null,
+    "master_volume": 0.7,
+    "ambient_volume": 0.3,
+    "sfx_volume": 0.8,
+    "muted": false
+  }
+}
