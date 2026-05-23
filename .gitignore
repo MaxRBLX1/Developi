@@ -1,1 +1,3 @@
 /target
+*.log
+developi_output.txt
