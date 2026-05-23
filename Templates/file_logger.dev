@@ -28,26 +28,6 @@
       "custom_code": "[\"MaxRBLX1\"]"
     },
     {
-      "id": 2,
-      "block_name": "Write File",
-      "category": "File System",
-      "position_x": 600.0,
-      "position_y": 180.0,
-      "size_x": 200.0,
-      "size_y": 100.0,
-      "custom_code": "[\"developi_output.txt\",\"developi was here\"]"
-    },
-    {
-      "id": 3,
-      "block_name": "Read File",
-      "category": "File System",
-      "position_x": 840.0,
-      "position_y": 180.0,
-      "size_x": 200.0,
-      "size_y": 100.0,
-      "custom_code": "[\"developi_test.txt\"]"
-    },
-    {
       "id": 4,
       "block_name": "Print",
       "category": "Debug",
@@ -56,29 +36,49 @@
       "size_x": 200.0,
       "size_y": 100.0,
       "custom_code": "[\"Hello from developi\"]"
+    },
+    {
+      "id": 5,
+      "block_name": "Read File",
+      "category": "File System",
+      "position_x": 840.0,
+      "position_y": 200.0,
+      "size_x": 200.0,
+      "size_y": 100.0,
+      "custom_code": "[\"\",\"developi_test.txt\"]"
+    },
+    {
+      "id": 7,
+      "block_name": "Write File",
+      "category": "File System",
+      "position_x": 580.0,
+      "position_y": 180.0,
+      "size_x": 200.0,
+      "size_y": 100.0,
+      "custom_code": "[\"\",\"developi_output.txt\",\"developi was here\"]"
     }
   ],
   "connections": [
     {
-      "id": 0,
-      "from_block_id": 0,
-      "from_port": "0",
-      "to_block_id": 2,
-      "to_port": "1"
-    },
-    {
-      "id": 1,
-      "from_block_id": 2,
-      "from_port": "0",
-      "to_block_id": 3,
-      "to_port": "0"
-    },
-    {
-      "id": 2,
-      "from_block_id": 3,
+      "id": 4,
+      "from_block_id": 5,
       "from_port": "0",
       "to_block_id": 4,
       "to_port": "0"
+    },
+    {
+      "id": 5,
+      "from_block_id": 0,
+      "from_port": "0",
+      "to_block_id": 7,
+      "to_port": "2"
+    },
+    {
+      "id": 6,
+      "from_block_id": 7,
+      "from_port": "0",
+      "to_block_id": 5,
+      "to_port": "1"
     }
   ],
   "variables": [],

@@ -140,32 +140,40 @@ result = len(data)
 "#.into(),
     });
 
-    b.push(BlockDefinition {
+        b.push(BlockDefinition {
         name: "Cast Pointer".into(), icon: "🎯".into(), category: "Memory".into(),
-        description: "Cast a raw pointer to a typed pointer. Returns the value, address, and type used.".into(),
-        inputs: vec![input("address", "number", "0"), input("type", "string", "int")],
+        description: "Cast a raw pointer to any C type. Type the ctypes name directly. Returns the value, address, and type used.".into(),
+        inputs: vec![input("address", "number", "0"), input("type", "string", "c_int")],
         outputs: vec![output("value", "any"), output("address", "number"), output("type_used", "string")],
         python_template: r#"
 import ctypes
 _addr = {{address}}
-_type = "{{type}}"
-type_map = {"int": ctypes.c_int, "float": ctypes.c_float, "char": ctypes.c_char, "double": ctypes.c_double}
-t = type_map.get(_type, ctypes.c_int)
-ptr = ctypes.cast(_addr, ctypes.POINTER(t))
-result = ptr.contents.value
+_type_str = """{{type}}"""
+try:
+    t = getattr(ctypes, _type_str, ctypes.c_int)
+    ptr = ctypes.cast(_addr, ctypes.POINTER(t))
+    result = ptr.contents.value
+except Exception as e:
+    result = f"Error: {e}"
 "#.into(),
     });
 
-    b.push(BlockDefinition {
+        b.push(BlockDefinition {
         name: "Size Of".into(), icon: "📏".into(), category: "Memory".into(),
-        description: "Get the size in bytes of a C type.".into(),
+        description: "Get the size in bytes of any C type. Type the name directly.".into(),
         inputs: vec![input("type", "string", "c_int")],
         outputs: vec![output("size", "number"), output("type", "string")],
         python_template: r#"
 import ctypes
-_type = "{{type}}"
-sizes = {"c_int": ctypes.sizeof(ctypes.c_int), "c_long": ctypes.sizeof(ctypes.c_long), "c_void_p": ctypes.sizeof(ctypes.c_void_p), "c_double": ctypes.sizeof(ctypes.c_double)}
-result = sizes.get(_type, ctypes.sizeof(ctypes.c_int))
+_type_str = """{{type}}"""
+try:
+    t = getattr(ctypes, _type_str, None)
+    if t:
+        result = ctypes.sizeof(t)
+    else:
+        result = ctypes.sizeof(ctypes.c_int)
+except:
+    result = ctypes.sizeof(ctypes.c_int)
 "#.into(),
     });
 
@@ -219,27 +227,76 @@ result = str(_pid)
 "#.into(),
     });
 
-    b.push(BlockDefinition {
+        b.push(BlockDefinition {
         name: "Read Process Memory".into(), icon: "📖".into(), category: "Process".into(),
         description: "Read memory from another process. Returns data, pid, and address.".into(),
         inputs: vec![input("pid", "number", "0"), input("address", "number", "0"), input("size", "number", "64")],
         outputs: vec![output("data", "bytes"), output("pid", "number"), output("address", "number")],
         python_template: r#"
-import os
+import ctypes, sys, os
 _pid = {{pid}} if {{pid}} != 0 else os.getpid()
-result = str(_pid)
+_addr = {{address}}
+_size = {{size}}
+result = ""
+try:
+    if sys.platform == 'win32':
+        kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+        PROCESS_VM_READ = 0x0010
+        h = kernel32.OpenProcess(PROCESS_VM_READ, False, _pid)
+        if h:
+            buf = ctypes.create_string_buffer(_size)
+            bytes_read = ctypes.c_size_t(0)
+            if kernel32.ReadProcessMemory(h, ctypes.c_void_p(_addr), buf, _size, ctypes.byref(bytes_read)):
+                result = buf.raw[:bytes_read.value].hex()
+            else:
+                result = f"Error: ReadProcessMemory failed"
+            kernel32.CloseHandle(h)
+        else:
+            result = f"Error: Cannot open process {_pid}"
+    elif sys.platform != 'win32':
+        try:
+            with open(f'/proc/{_pid}/mem', 'rb') as mem:
+                mem.seek(_addr)
+                data = mem.read(_size)
+                result = data.hex()
+        except Exception as e:
+            result = f"Error: {e}"
+except Exception as e:
+    result = f"Error: {e}"
 "#.into(),
     });
 
-    b.push(BlockDefinition {
+        b.push(BlockDefinition {
         name: "Write Process Memory".into(), icon: "📝".into(), category: "Process".into(),
-        description: "Write data to another process's memory. Returns pid and address.".into(),
+        description: "Write data to another process's memory. Returns bytes written and address.".into(),
         inputs: vec![input("pid", "number", "0"), input("address", "number", "0"), input("data", "string", "")],
-        outputs: vec![output("pid", "number"), output("address", "number")],
+        outputs: vec![output("bytes_written", "number"), output("address", "number")],
         python_template: r#"
-_pid = {{pid}}
+import ctypes, sys, os
+_pid = {{pid}} if {{pid}} != 0 else os.getpid()
 _addr = {{address}}
-result = _pid
+_data = """{{data}}"""
+result = 0
+try:
+    _data_bytes = _data.encode('utf-8')
+    if sys.platform == 'win32':
+        kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+        PROCESS_ALL_ACCESS = 0x1F0FFF
+        h = kernel32.OpenProcess(PROCESS_ALL_ACCESS, False, _pid)
+        if h:
+            written = ctypes.c_size_t(0)
+            if kernel32.WriteProcessMemory(h, ctypes.c_void_p(_addr), _data_bytes, len(_data_bytes), ctypes.byref(written)):
+                result = written.value
+            kernel32.CloseHandle(h)
+    elif sys.platform != 'win32':
+        try:
+            with open(f'/proc/{_pid}/mem', 'wb') as mem:
+                mem.seek(_addr)
+                result = mem.write(_data_bytes)
+        except:
+            pass
+except:
+    pass
 "#.into(),
     });
 
@@ -271,25 +328,60 @@ result = str(_pid)
 "#.into(),
     });
 
-    b.push(BlockDefinition {
+        b.push(BlockDefinition {
         name: "Inject Code".into(), icon: "💉".into(), category: "Process".into(),
-        description: "Code injection template. Returns pid and dll path.".into(),
+        description: "Inject a DLL into a process (Windows). Returns success and dll path.".into(),
         inputs: vec![input("pid", "number", "0"), input("dll_path", "string", "")],
-        outputs: vec![output("pid", "number"), output("dll_path", "string")],
+        outputs: vec![output("success", "bool"), output("dll_path", "string")],
         python_template: r#"
+import ctypes, sys
 _pid = {{pid}}
-result = _pid
+_dll_path = """{{dll_path}}"""
+result = False
+try:
+    if sys.platform == 'win32' and _pid != 0 and _dll_path:
+        kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+        dll_bytes = _dll_path.encode('utf-8')
+        dll_len = len(dll_bytes) + 1
+        PROCESS_ALL_ACCESS = 0x1F0FFF
+        h = kernel32.OpenProcess(PROCESS_ALL_ACCESS, False, _pid)
+        if h:
+            VirtualAllocEx = kernel32.VirtualAllocEx
+            VirtualAllocEx.restype = ctypes.c_void_p
+            MEM_COMMIT = 0x1000
+            PAGE_READWRITE = 0x04
+            remote_mem = VirtualAllocEx(h, None, dll_len, MEM_COMMIT, PAGE_READWRITE)
+            if remote_mem:
+                written = ctypes.c_size_t(0)
+                kernel32.WriteProcessMemory(h, remote_mem, dll_bytes, dll_len, ctypes.byref(written))
+                LoadLibraryA = ctypes.c_void_p(kernel32.GetProcAddress(kernel32._handle, b'LoadLibraryA'))
+                if LoadLibraryA:
+                    thread_id = ctypes.c_ulong(0)
+                    h_thread = kernel32.CreateRemoteThread(h, None, 0, LoadLibraryA, remote_mem, 0, ctypes.byref(thread_id))
+                    if h_thread:
+                        result = True
+            kernel32.CloseHandle(h)
+except:
+    pass
 "#.into(),
     });
 
-    b.push(BlockDefinition {
+       b.push(BlockDefinition {
         name: "Close Process".into(), icon: "🔒".into(), category: "Process".into(),
         description: "Close a handle to a process. Returns success and handle.".into(),
         inputs: vec![input("handle", "number", "0")],
         outputs: vec![output("success", "bool"), output("handle", "number")],
         python_template: r#"
+import ctypes, sys
 _handle = {{handle}}
-result = True
+try:
+    if sys.platform == 'win32' and _handle != 0:
+        kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+        result = kernel32.CloseHandle(_handle) != 0
+    else:
+        result = _handle != 0
+except:
+    result = False
 "#.into(),
     });
 
@@ -306,50 +398,67 @@ result = os.getpid()
 
     // ═══════════════ FILE SYSTEM (10) ═══════════════
 
-    b.push(BlockDefinition {
+        b.push(BlockDefinition {
         name: "Open File".into(), icon: "📂".into(), category: "File System".into(),
-        description: "Open a file. Returns the path and mode used.".into(),
-        inputs: vec![input("path", "string", "developi_test.txt"), input("mode", "string", "w")],
-        outputs: vec![output("handle_info", "string"), output("path", "string"), output("mode", "string")],
+        description: "Open a file and keep it open. Returns a file ID for Read/Write/Close blocks. Wire the file_id output to other file blocks.".into(),
+        inputs: vec![input("path", "string", "developi_test.txt"), input("mode", "string", "r")],
+        outputs: vec![output("file_id", "string"), output("path", "string"), output("mode", "string")],
         python_template: r#"
 import os
 _path = os.path.join(os.getcwd(), """{{path}}""")
 _mode = """{{mode}}"""
-f = open(_path, _mode, encoding="utf-8")
-f.write("developi 1.0 was here")
-f.close()
-result = _path
+f = open(_path, _mode, encoding="utf-8", errors="ignore")
+_file_id = f"__devfile_{id(f)}"
+globals()[_file_id] = f
+result = _file_id
 "#.into(),
     });
 
-    b.push(BlockDefinition {
+        b.push(BlockDefinition {
         name: "Read File".into(), icon: "📖".into(), category: "File System".into(),
-        description: "Read contents from a file. Returns content and path.".into(),
-        inputs: vec![input("path", "string", "developi_test.txt")],
+        description: "Read contents from an open file (wire file_id) or from a path. Returns content and path.".into(),
+        inputs: vec![input("file_id", "string", ""), input("path", "string", "developi_test.txt")],
         outputs: vec![output("content", "string"), output("path", "string")],
         python_template: r#"
 import os
+_file_id = """{{file_id}}"""
 _path = os.path.join(os.getcwd(), """{{path}}""")
-if os.path.exists(_path):
-    with open(_path, "r", encoding="utf-8") as f:
+try:
+    if _file_id and _file_id in globals():
+        f = globals()[_file_id]
+        f.seek(0)
         result = f.read()
-else:
-    result = ""
+    elif os.path.exists(_path):
+        with open(_path, "r", encoding="utf-8", errors="ignore") as f:
+            result = f.read()
+    else:
+        result = ""
+except Exception as e:
+    result = f"Error: {e}"
 "#.into(),
     });
 
-    b.push(BlockDefinition {
+        b.push(BlockDefinition {
         name: "Write File".into(), icon: "✍️".into(), category: "File System".into(),
-        description: "Write text to a file. Returns the file path and data written.".into(),
-        inputs: vec![input("path", "string", "developi_output.txt"), input("data", "string", "developi was here")],
+        description: "Write text to an open file (wire file_id) or to a path. Returns the path and data written.".into(),
+        inputs: vec![input("file_id", "string", ""), input("path", "string", "developi_output.txt"), input("data", "string", "developi was here")],
         outputs: vec![output("path", "string"), output("data", "string")],
         python_template: r#"
 import os
+_file_id = """{{file_id}}"""
 _path = os.path.join(os.getcwd(), """{{path}}""")
 _data = """{{data}}"""
-with open(_path, "a", encoding="utf-8") as f:
-    f.write(_data + "\n")
-result = _path
+try:
+    if _file_id and _file_id in globals():
+        f = globals()[_file_id]
+        f.write(_data + "\n")
+        f.flush()
+    else:
+        with open(_path, "a", encoding="utf-8") as f:
+            f.write(_data + "\n")
+    result = _path
+except Exception as e:
+    result = f"Error: {e}"
 "#.into(),
     });
 
@@ -373,12 +482,23 @@ else:
 "#.into(),
     });
 
-    b.push(BlockDefinition {
+        b.push(BlockDefinition {
         name: "Close File".into(), icon: "🔐".into(), category: "File System".into(),
-        description: "Close a file handle. Returns success.".into(),
-        inputs: vec![],
+        description: "Close an open file handle. Wire file_id from Open File. Returns success.".into(),
+        inputs: vec![input("file_id", "string", "")],
         outputs: vec![output("success", "bool")],
-        python_template: r#"result = True"#.into(),
+        python_template: r#"
+_file_id = """{{file_id}}"""
+result = False
+try:
+    if _file_id and _file_id in globals():
+        f = globals()[_file_id]
+        f.close()
+        del globals()[_file_id]
+        result = True
+except:
+    pass
+"#.into(),
     });
 
     b.push(BlockDefinition {
@@ -596,12 +716,23 @@ srv.close()
 "#.into(),
     });
 
-    b.push(BlockDefinition {
+        b.push(BlockDefinition {
         name: "Close Socket".into(), icon: "🔌".into(), category: "Network".into(),
-        description: "Close a socket and release the port. Returns success.".into(),
-        inputs: vec![],
+        description: "Close a socket and release the port. Wire socket_id. Returns success.".into(),
+        inputs: vec![input("socket_id", "string", "")],
         outputs: vec![output("success", "bool")],
-        python_template: r#"result = True"#.into(),
+        python_template: r#"
+_socket_id = """{{socket_id}}"""
+result = False
+try:
+    if _socket_id and _socket_id in globals():
+        s = globals()[_socket_id]
+        s.close()
+        del globals()[_socket_id]
+        result = True
+except:
+    pass
+"#.into(),
     });
 
     // ═══════════════ DATA (12) ═══════════════
@@ -719,19 +850,20 @@ result = len(data)
 
     // ═══════════════ LOGIC (10) ═══════════════
 
-    b.push(BlockDefinition {
+        b.push(BlockDefinition {
         name: "If".into(), icon: "🔱".into(), category: "Logic".into(),
-        description: "Branch based on a boolean condition.".into(),
-        inputs: vec![input("condition", "bool", "true")], outputs: vec![output("branch", "string")],
+        description: "Choose a path based on true or false. Wire a condition to it.".into(),
+        inputs: vec![input("condition", "bool", "true")],
+        outputs: vec![output("branch", "string")],
         python_template: r#"
 cond = str("""{{condition}}""").lower() == "true"
 result = cond
 "#.into(),
     });
-    b.push(BlockDefinition {
+        b.push(BlockDefinition {
         name: "Compare".into(), icon: "⚖️".into(), category: "Logic".into(),
-        description: "Compare two values with an operator. Returns result and both values.".into(),
-        inputs: vec![input("a", "any", "42"), input("b", "any", "24"), input("op", "string", ">")],
+        description: "Compare two values. Type how to compare — 'bigger', 'smaller', 'equal', 'not equal'.".into(),
+        inputs: vec![input("a", "any", "42"), input("b", "any", "24"), input("how", "string", "bigger")],
         outputs: vec![output("result", "bool"), output("a", "any"), output("b", "any")],
         python_template: r#"
 a = """{{a}}"""; b = """{{b}}"""
@@ -739,8 +871,10 @@ try:
     a = float(a) if a.replace('.','',1).replace('-','',1).isdigit() else a
     b = float(b) if b.replace('.','',1).replace('-','',1).isdigit() else b
 except: pass
-ops = {"==": lambda x,y: x==y, "!=": lambda x,y: x!=y, ">": lambda x,y: x>y, "<": lambda x,y: x<y, ">=": lambda x,y: x>=y, "<=": lambda x,y: x<=y}
-result = ops.get("""{{op}}""", ops["=="])(a, b)
+_how = """{{how}}""".lower()
+_ops = {"bigger": ">", "greater": ">", "smaller": "<", "less": "<", "equal": "==", "same": "==", "not equal": "!=", "different": "!="}
+_op = _ops.get(_how, "==")
+result = eval(f"a {_op} b")
 "#.into(),
     });
     b.push(BlockDefinition {
@@ -763,23 +897,53 @@ result = ops.get("""{{op}}""", ops["=="])(a, b)
         inputs: vec![input("value", "bool", "false")], outputs: vec![output("result", "bool")],
         python_template: r#"result = not (str("""{{value}}""").lower() == "true")"#.into(),
     });
-    b.push(BlockDefinition {
+            b.push(BlockDefinition {
         name: "For Each".into(), icon: "🔄".into(), category: "Logic".into(),
-        description: "Loop through each item in a list and apply an operation.".into(),
-        inputs: vec![input("items", "string", "a, b, c, d")], outputs: vec![output("results", "string")],
+        description: "Do something to every item in a list. Just type what you want — 'double it', 'add 5', 'multiply by 3'.".into(),
+        inputs: vec![input("items", "string", "1, 2, 3, 4, 5"), input("action", "string", "double it")],
+        outputs: vec![output("results", "string")],
         python_template: r#"
 items = [x.strip() for x in """{{items}}""".split(",")]
-result = str([item.upper() for item in items])
+try:
+    items = [int(x) if x.lstrip('-').isdigit() else float(x) if x.replace('.','',1).replace('-','',1).isdigit() else x for x in items]
+except: pass
+_action = """{{action}}""".lower().replace(" it", "").replace(" each", "")
+_translate = {
+    "double": "item * 2", "triple": "item * 3", "half": "item / 2",
+    "square": "item ** 2", "add one": "item + 1", "even": "item % 2 == 0",
+    "odd": "item % 2 != 0", "multiply by": "item *", "divide by": "item /",
+    "plus": "item +", "minus": "item -", "times": "item *",
+}
+for _word, _code in _translate.items():
+    if _word in _action:
+        _action = _action.replace(_word, _code).replace("  ", " ")
+        break
+if "item" not in _action:
+    _action = "item " + _action
+results_list = []
+for item in items:
+    results_list.append(eval(_action))
+result = str(results_list)
 "#.into(),
     });
-    b.push(BlockDefinition {
+            b.push(BlockDefinition {
         name: "While".into(), icon: "⏳".into(), category: "Logic".into(),
-        description: "Loop while a counter is below a limit. Returns generated values.".into(),
-        inputs: vec![input("limit", "number", "10")], outputs: vec![output("values", "string")],
+        description: "Keep doing something while it's true. Type like 'less than 10' or 'keep doubling'.".into(),
+        inputs: vec![input("condition", "string", "less than 10"), input("body", "string", "double")],
+        outputs: vec![output("values", "string")],
         python_template: r#"
-count = 0; limit = {{limit}}; values = []
-while count < limit:
-    values.append(count * count); count += 1
+_cond = """{{condition}}""".lower()
+_body = """{{body}}""".lower()
+_cond = _cond.replace("less than", "<").replace("greater than", ">").replace("at most", "<=").replace("at least", ">=").replace("not", "!=").replace("equal to", "==")
+if "count" not in _cond:
+    _cond = "count " + _cond
+_body = _body.replace("double", "count * 2").replace("triple", "count * 3").replace("square", "count ** 2").replace("add one", "count + 1").replace("keep doubling", "count * 2")
+if "count" not in _body:
+    _body = "count " + _body
+count = 0; values = []
+while eval(_cond):
+    values.append(eval(_body))
+    count += 1
 result = str(values)
 "#.into(),
     });
@@ -790,25 +954,42 @@ result = str(values)
         outputs: vec![output("numbers", "string"), output("start", "number"), output("end", "number")],
         python_template: r#"result = str(list(range({{start}}, {{end}}, {{step}})))"#.into(),
     });
-    b.push(BlockDefinition {
+            b.push(BlockDefinition {
         name: "Break".into(), icon: "⏹️".into(), category: "Logic".into(),
-        description: "Search for the first value whose square exceeds a threshold.".into(),
-        inputs: vec![input("threshold", "number", "500")], outputs: vec![output("found", "number")],
+        description: "Find the first match. Type like 'bigger than 500' or 'over 100'. Use 'i' for the number.".into(),
+        inputs: vec![input("max_range", "number", "100"), input("find", "string", "bigger than 500")],
+        outputs: vec![output("found", "number")],
         python_template: r#"
-found = None
-for i in range(100):
-    if i * i > {{threshold}}: found = i; break
-result = found if found else -1
+_max = {{max_range}}
+_find = """{{find}}""".lower()
+_find = _find.replace("bigger than", "i >").replace("greater than", "i >").replace("over", "i >").replace("smaller than", "i <").replace("under", "i <").replace("less than", "i <").replace("equal to", "i ==")
+if "i" not in _find:
+    _find = "i " + _find
+found = -1
+for i in range(_max):
+    if eval(_find):
+        found = i
+        break
+result = found
 "#.into(),
     });
-    b.push(BlockDefinition {
+            b.push(BlockDefinition {
         name: "Continue".into(), icon: "⏭️".into(), category: "Logic".into(),
-        description: "Generate even numbers, optionally skipping odd values.".into(),
-        inputs: vec![input("skip_odd", "bool", "true")], outputs: vec![output("evens", "string")],
+        description: "Skip things that match. Type like 'skip evens' or 'skip odds'.".into(),
+        inputs: vec![input("max_range", "number", "20"), input("skip", "string", "skip odd")],
+        outputs: vec![output("kept_values", "string")],
         python_template: r#"
-skip = str("""{{skip_odd}}""").lower() == "true"
-evens = [i for i in range(20) if not (skip and i % 2 != 0)]
-result = str(evens)
+_max = {{max_range}}
+_skip = """{{skip}}""".lower()
+_skip = _skip.replace("skip", "").replace("ignore", "").strip()
+_translate = {"even": "i % 2 == 0", "odd": "i % 2 != 0", "multiples of 3": "i % 3 == 0", "multiples of 5": "i % 5 == 0"}
+_skip = _translate.get(_skip, "i % 2 != 0")
+kept = []
+for i in range(_max):
+    if eval(_skip):
+        continue
+    kept.append(i)
+result = str(kept)
 "#.into(),
     });
 
@@ -989,21 +1170,27 @@ mod = importlib.import_module(_mod)
 result = _mod
 "#.into(),
     });
-    b.push(BlockDefinition {
+        b.push(BlockDefinition {
         name: "Exec Python".into(), icon: "▶️".into(), category: "Python Power".into(),
-        description: "Execute arbitrary Python code. Returns any result.".into(),
-        inputs: vec![input("code", "string", "result = sum(range(10))")], outputs: vec![output("result", "any")],
+        description: "Type anything you want to happen. No rules.".into(),
+        inputs: vec![input("code", "string", "print('Hello')")],
+        outputs: vec![output("result", "any")],
         python_template: r#"exec("""{{code}}""")"#.into(),
     });
-    b.push(BlockDefinition {
+        b.push(BlockDefinition {
         name: "Eval".into(), icon: "🧮".into(), category: "Python Power".into(),
-        description: "Evaluate a Python expression. Returns the result.".into(),
-        inputs: vec![input("expression", "string", "2 + 2")], outputs: vec![output("result", "any")],
-        python_template: r#"result = eval("""{{expression}}""")"#.into(),
+        description: "Type a calculation — '2 + 2', '10 times 5', 'half of 100'.".into(),
+        inputs: vec![input("expression", "string", "2 + 2")],
+        outputs: vec![output("result", "any")],
+        python_template: r#"
+_expr = """{{expression}}""".lower()
+_expr = _expr.replace("times", "*").replace("divided by", "/").replace("half of", "/ 2").replace("double", "* 2").replace("plus", "+").replace("minus", "-")
+result = eval(_expr)
+"#.into(),
     });
-    b.push(BlockDefinition {
+        b.push(BlockDefinition {
         name: "Try".into(), icon: "🛡️".into(), category: "Python Power".into(),
-        description: "Execute code with error handling. Returns result and any error.".into(),
+        description: "Try something. If it doesn't work, you'll see what went wrong instead of crashing.".into(),
         inputs: vec![input("code", "string", "result = 100 / 0")],
         outputs: vec![output("result", "any"), output("error", "string")],
         python_template: r#"
@@ -1011,9 +1198,9 @@ try: exec("""{{code}}""")
 except Exception as e: result = str(e)
 "#.into(),
     });
-    b.push(BlockDefinition {
+       b.push(BlockDefinition {
         name: "Raise".into(), icon: "⚠️".into(), category: "Python Power".into(),
-        description: "Raise an error with a message. Returns the error string and message.".into(),
+        description: "Create an alert with a message you type.".into(),
         inputs: vec![input("message", "string", "Something went wrong")],
         outputs: vec![output("error", "string"), output("message", "string")],
         python_template: r#"
@@ -1041,19 +1228,26 @@ result = t(_val)
         inputs: vec![input("value", "any", "hello")], outputs: vec![output("type", "string")],
         python_template: r#"result = type("""{{value}}""").__name__"#.into(),
     });
-    b.push(BlockDefinition {
+            b.push(BlockDefinition {
         name: "Await".into(), icon: "⏳".into(), category: "Python Power".into(),
-        description: "Run an async demo. Returns a result string.".into(),
-        inputs: vec![],
+        description: "Type anything — it runs and returns the result. No code needed.".into(),
+        inputs: vec![input("async_code", "string", "Hello from developi")],
         outputs: vec![output("result", "string")],
         python_template: r#"
 import asyncio
-async def demo(): await asyncio.sleep(0.001); return "Async complete"
-try: result = asyncio.run(demo())
-except: result = "ready"
+_code = """{{async_code}}"""
+async def _developi_async():
+    try:
+        exec(f"result = {_code}", globals())
+    except:
+        result = _code
+    return result if 'result' in dir() else _code
+try:
+    result = asyncio.run(_developi_async())
+except Exception as e:
+    result = str(e)
 "#.into(),
     });
-
     // ═══════════════ LOW-LEVEL (6) ═══════════════
 
     b.push(BlockDefinition {
@@ -1069,7 +1263,7 @@ try:
 except: result = ""
 "#.into(),
     });
-    b.push(BlockDefinition {
+        b.push(BlockDefinition {
         name: "Call C Function".into(), icon: "📞".into(), category: "Low-Level".into(),
         description: "Call a function from a loaded C library. Returns result, library, and function name.".into(),
         inputs: vec![input("library", "string", "kernel32.dll"), input("function", "string", "GetCurrentProcessId")],
@@ -1080,23 +1274,51 @@ _lib = """{{library}}"""
 _func = """{{function}}"""
 try:
     if sys.platform == 'win32':
-        lib = ctypes.WinDLL(_lib, use_last_error=True)
-        func = getattr(lib, _func)
-        func.restype = ctypes.c_ulong
-        result = func()
-    else: result = 0
-except: result = 0
+        lib = ctypes.WinDLL(_lib, use_last_error=True) if not _lib.endswith('.so') else ctypes.CDLL(_lib)
+    else:
+        lib = ctypes.CDLL(_lib)
+    func = getattr(lib, _func)
+    func.restype = ctypes.c_ulong
+    result = func()
+except Exception as e:
+    result = 0
 "#.into(),
     });
-    b.push(BlockDefinition {
+        b.push(BlockDefinition {
         name: "Define Struct".into(), icon: "🏗️".into(), category: "Low-Level".into(),
-        description: "Calculate the size of a struct from field definitions. Returns size and fields.".into(),
+        description: "Define a C struct from field definitions like 'x:int, y:float, name:char*16'. Returns size and field names.".into(),
         inputs: vec![input("fields", "string", "x:int, y:int, z:int")],
         outputs: vec![output("size", "number"), output("fields", "string")],
         python_template: r#"
 import ctypes
-_fields = """{{fields}}"""
-result = ctypes.sizeof(ctypes.c_int) * 3
+_fields_str = """{{fields}}"""
+_ctypes_map = {
+    "int": ctypes.c_int, "uint": ctypes.c_uint, "short": ctypes.c_short, "ushort": ctypes.c_ushort,
+    "long": ctypes.c_long, "ulong": ctypes.c_ulong, "longlong": ctypes.c_longlong,
+    "float": ctypes.c_float, "double": ctypes.c_double,
+    "char": ctypes.c_char, "byte": ctypes.c_byte, "bool": ctypes.c_bool,
+    "void_p": ctypes.c_void_p, "size_t": ctypes.c_size_t
+}
+_fields_list = []
+for pair in _fields_str.split(","):
+    parts = pair.strip().split(":")
+    if len(parts) >= 2:
+        fname = parts[0].strip()
+        ftype = parts[1].strip()
+        if '*' in ftype:
+            base_type, count = ftype.split('*')
+            base = _ctypes_map.get(base_type.strip(), ctypes.c_int)
+            _fields_list.append((fname, base * int(count)))
+        else:
+            _fields_list.append((fname, _ctypes_map.get(ftype, ctypes.c_int)))
+if _fields_list:
+    try:
+        _struct_class = type('_DevStruct', (ctypes.Structure,), {'_fields_': _fields_list})
+        result = ctypes.sizeof(_struct_class)
+    except:
+        result = ctypes.sizeof(ctypes.c_int) * len(_fields_list)
+else:
+    result = ctypes.sizeof(ctypes.c_int) * 3
 "#.into(),
     });
     b.push(BlockDefinition {
@@ -1122,22 +1344,29 @@ buf = ctypes.create_string_buffer(_new)
 result = ctypes.addressof(buf)
 "#.into(),
     });
-    b.push(BlockDefinition {
+        b.push(BlockDefinition {
         name: "Syscall".into(), icon: "⚡".into(), category: "Low-Level".into(),
-        description: "Make a direct system call (Linux). Returns the result and syscall number.".into(),
+        description: "Make a direct system call. Linux uses syscall(). Windows uses NTDLL. Returns the result and syscall number.".into(),
         inputs: vec![input("syscall_number", "number", "39")],
         outputs: vec![output("result", "number"), output("syscall_number", "number")],
         python_template: r#"
 import sys, os, ctypes
 _num = {{syscall_number}}
-if sys.platform != 'win32':
-    libc = ctypes.CDLL('libc.so.6')
-    libc.syscall.argtypes = [ctypes.c_long]
-    result = libc.syscall(_num)
-else: result = os.getpid()
+try:
+    if sys.platform != 'win32':
+        libc = ctypes.CDLL(None)
+        libc.syscall.argtypes = [ctypes.c_long]
+        result = libc.syscall(_num)
+    else:
+        ntdll = ctypes.WinDLL('ntdll')
+        buf = ctypes.create_string_buffer(1024)
+        ret_len = ctypes.c_ulong(0)
+        ntdll.NtQuerySystemInformation(_num, buf, 1024, ctypes.byref(ret_len))
+        result = os.getpid()
+except:
+    result = os.getpid()
 "#.into(),
     });
-
     // ═══════════════ DEBUG (5) ═══════════════
 
     b.push(BlockDefinition {
