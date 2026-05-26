@@ -1,21 +1,26 @@
-MIT License
+GNU GPLv3
 
-Copyright (c) 2026 MaxRBLX1
+developi — The Workshop For Inventors
+Copyright (C) 2026  MaxRBLX1
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This program is free software: you can use it, study it, share it,
+and improve it, as long as you follow these rules:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+1. Keep this license and the copyright notice with any copy you share.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+2. If you modify this code and share the modified version, you must
+   also share your changes under this same license (GPL v3.0).
+
+3. You must make the source code available to anyone who gets a copy
+   of the software (even if you only share a compiled .exe).
+
+4. There is NO WARRANTY. This software comes "as is", without any
+   guarantee that it works for your purpose.
+
+In short:
+- Do what you want with it.
+- If you share it or modify it, keep it free and open.
+- Always credit the original author (MaxRBLX1).
+- Don't blame me if it breaks.
+
+The full legal license text is at: https://www.gnu.org/licenses/gpl-3.0.txt
