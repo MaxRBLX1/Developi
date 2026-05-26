@@ -1,18 +1,18 @@
 {
   "metadata": {
-    "name": "memory_writer",
+    "name": "developi_project",
     "version": "1.0",
     "developi_version": "1.0",
     "created_at": "",
     "modified_at": "",
     "block_count": 4,
-    "connection_count": 5,
+    "connection_count": 3,
     "description": ""
   },
   "canvas": {
-    "zoom": 0.851891,
-    "view_offset_x": 241.51926,
-    "view_offset_y": 113.49582,
+    "zoom": 1.0,
+    "view_offset_x": 0.0,
+    "view_offset_y": 0.0,
     "grid_size": 20.0,
     "grid_visible": true
   },
@@ -21,41 +21,41 @@
       "id": 0,
       "block_name": "Allocate Memory",
       "category": "Memory",
-      "position_x": 260.0,
-      "position_y": 100.0,
+      "position_x": 280.0,
+      "position_y": 260.0,
       "size_x": 200.0,
       "size_y": 100.0,
-      "custom_code": "[\"64\"]"
+      "custom_code": "[\"1024\"]"
     },
     {
       "id": 1,
       "block_name": "Write Memory",
       "category": "Memory",
-      "position_x": 520.0,
-      "position_y": 180.0,
+      "position_x": 560.0,
+      "position_y": 320.0,
       "size_x": 200.0,
       "size_y": 100.0,
-      "custom_code": "[\"0\",\"MaxRBLX1 \"]"
+      "custom_code": "[\"0\",\"developi\"]"
+    },
+    {
+      "id": 2,
+      "block_name": "Read Memory",
+      "category": "Memory",
+      "position_x": 860.0,
+      "position_y": 300.0,
+      "size_x": 200.0,
+      "size_y": 100.0,
+      "custom_code": "[\"0\",\"16\"]"
     },
     {
       "id": 3,
       "block_name": "Print",
       "category": "Debug",
-      "position_x": 1020.0,
-      "position_y": 120.0,
+      "position_x": 1140.0,
+      "position_y": 320.0,
       "size_x": 200.0,
       "size_y": 100.0,
       "custom_code": "[\"Hello from developi\"]"
-    },
-    {
-      "id": 4,
-      "block_name": "Read Memory",
-      "category": "Memory",
-      "position_x": 740.0,
-      "position_y": 80.0,
-      "size_x": 200.0,
-      "size_y": 100.0,
-      "custom_code": "[\"0\",\"16\"]"
     }
   ],
   "connections": [
@@ -69,29 +69,15 @@
     {
       "id": 1,
       "from_block_id": 1,
-      "from_port": "0",
-      "to_block_id": 4,
-      "to_port": "1"
+      "from_port": "1",
+      "to_block_id": 2,
+      "to_port": "0"
     },
     {
       "id": 2,
-      "from_block_id": 0,
-      "from_port": "0",
-      "to_block_id": 4,
-      "to_port": "0"
-    },
-    {
-      "id": 3,
-      "from_block_id": 4,
+      "from_block_id": 2,
       "from_port": "0",
       "to_block_id": 3,
-      "to_port": "0"
-    },
-    {
-      "id": 4,
-      "from_block_id": 0,
-      "from_port": "0",
-      "to_block_id": 4,
       "to_port": "0"
     }
   ],

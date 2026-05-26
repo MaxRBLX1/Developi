@@ -1,3 +1,7 @@
+// main.rs — developi 1.0 Main Application
+// The Workshop For Inventors
+// No walls. No limits. Just imagination.
+
 mod canvas;
 mod engine;
 mod blocks;
@@ -7,17 +11,182 @@ mod project;
 use eframe::egui;
 use log::info;
 
-fn main() {
-    env_logger::init();
+// ─── STARTUP CHECK ───
+fn verify_python_embedded() -> bool {
+    use std::path::PathBuf;
+    
+    let exe_dir = match std::env::current_exe() {
+        Ok(p) => match p.parent() {
+            Some(d) => d.to_path_buf(),
+            None => return false,
+        },
+        Err(_) => return false,
+    };
+    
+    let python_dir = exe_dir.join("Languages").join("Python");
+    
+    if !python_dir.exists() {
+        println!("❌ Languages\\Python folder not found at: {:?}", python_dir);
+        return false;
+    }
+    
+    let mut found_python_dll = false;
+    let mut file_count = 0;
+    
+    // Walk ALL directories recursively
+    fn walk_dir(dir: &std::path::Path, found_dll: &mut bool, file_count: &mut usize) {
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                let name = path.file_name().unwrap_or_default().to_string_lossy().to_lowercase();
+                
+                if name.contains("python") && (name.ends_with(".dll") || name.ends_with(".so")) {
+                    *found_dll = true;
+                }
+                
+                if path.is_dir() {
+                    walk_dir(&path, found_dll, file_count);
+                } else {
+                    *file_count += 1;
+                }
+            }
+        }
+    }
+    
+    walk_dir(&python_dir, &mut found_python_dll, &mut file_count);
+    
+    println!("   Found {} files, Python DLL: {}", file_count, found_python_dll);
+    found_python_dll && file_count > 10
+}
 
-    if let Ok(exe_path) = std::env::current_exe() {
-        if let Some(exe_dir) = exe_path.parent() {
-            let python_home = exe_dir.join("languages").join("python");
-            std::env::set_var("PYTHONHOME", &python_home);
-            info!("Python home set to: {:?}", python_home);
+// ─── BUILD TEST CANVAS FOR BLOCK VALIDATION ───
+struct TestBlock {
+    id: u64,
+    definition: blocks::BlockDefinition,
+    input_values: Vec<String>,
+}
+
+fn build_test_canvas(
+    target: &blocks::BlockDefinition,
+    registry: &blocks::BlockRegistry,
+) -> (Vec<TestBlock>, Vec<engine::ConnectionData>) {
+    let mut blocks = Vec::new();
+    let mut connections = Vec::new();
+    let mut next_id: u64 = 100; // target gets id 100, helpers start at 1
+
+    // Helper to add a block by name and return its id
+    let mut add_block = |name: &str, inputs: Vec<String>| -> u64 {
+        let def = registry.find_block(name).unwrap().clone();
+        let id = if name == target.name { 100 } else { next_id };
+        if name != target.name { next_id += 1; }
+        blocks.push(TestBlock { id, definition: def, input_values: inputs });
+        id
+    };
+
+    // Default input values for the target block
+    let target_inputs: Vec<String> = target.inputs.iter()
+        .map(|p| p.default_value.clone())
+        .collect();
+
+    // Determine which supporting blocks are needed
+    let target_name = target.name.as_str();
+    match target_name {
+        "Write Memory" | "Read Memory" | "Cast Pointer" | "Free Memory" => {
+            let alloc_id = add_block("Allocate Memory", vec!["64".into()]);
+            let target_id = add_block(target_name, target_inputs);
+            // Wire Allocate Memory address -> target address
+            connections.push(engine::ConnectionData {
+                from_block: alloc_id,
+                from_port_index: 0, // address output
+                to_block: target_id,
+                to_port_index: 0,   // address input
+            });
+        }
+        "Open File" => {
+            let tmp_path = std::env::temp_dir().join("developi_test.txt");
+            std::fs::write(&tmp_path, "developi test").ok();
+            let path_str = tmp_path.to_string_lossy().to_string();
+            add_block("Open File", vec![path_str, "r".into()]);
+            std::fs::remove_file(&tmp_path).ok();
+        }
+        "Seek File" | "Close File" => {
+            // Create a real temporary file so Open File succeeds
+            let tmp_path = std::env::temp_dir().join("developi_test.txt");
+            std::fs::write(&tmp_path, "developi test").ok();
+            let path_str = tmp_path.to_string_lossy().to_string();
+
+            let open_id = add_block("Open File", vec![path_str, "r".into()]);
+            let target_id = add_block(target_name, target_inputs);
+            connections.push(engine::ConnectionData {
+                from_block: open_id,
+                from_port_index: 0,
+                to_block: target_id,
+                to_port_index: 0,
+            });
+
+            // Cleanup after test
+            std::fs::remove_file(&tmp_path).ok();
+        }
+        "Bind Socket" | "Send Data" | "Receive Data" | "Close Socket" | "Listen Socket" | "Accept Connection" => {
+            let sock_id = add_block("Create Socket", vec!["tcp".into()]);
+            let target_id = add_block(target_name, target_inputs);
+            // Wire Create Socket socket -> target socket
+            connections.push(engine::ConnectionData {
+                from_block: sock_id,
+                from_port_index: 0, // socket
+                to_block: target_id,
+                to_port_index: 0,   // socket
+            });
+        }
+        "Call C Function" => {
+            let lib_id = add_block("Load Library", vec!["kernel32.dll".into()]);
+            let target_id = add_block(target_name, target_inputs);
+            connections.push(engine::ConnectionData {
+                from_block: lib_id,
+                from_port_index: 0, // library
+                to_block: target_id,
+                to_port_index: 0,   // library
+            });
+        }
+        _ => {
+            // For all other blocks (standalone), just add the target
+            add_block(target_name, target_inputs);
         }
     }
 
+    (blocks, connections)
+}
+
+fn main() {
+    // ─── STARTUP CHECK ───
+    print!("🔍 Please wait while I check all the embedded things here Languages\\Python...");
+    let verified = verify_python_embedded();
+    
+    if !verified {
+        println!();
+        eprintln!("❌ Error: Python embedded files not found in Languages\\Python");
+        eprintln!("   Make sure the Languages\\Python folder is next to developi.exe");
+        std::process::exit(1);
+    }
+    println!(" ✅ Verified.");
+    // ─── END STARTUP CHECK ───
+
+    // Set Python path FIRST — must happen before any Python code runs
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            let python_home = exe_dir.join("Languages").join("Python");
+            std::env::set_var("PYTHONHOME", &python_home);
+        }
+    }
+
+    // ─── INTERNAL VALIDATION MODE ───
+    let args: Vec<String> = std::env::args().collect();
+    if args.iter().any(|a| a == "--validate") {
+        validate_all_blocks();
+        return;
+    }
+
+    env_logger::init();
     info!("developi 1.0 starting...");
 
     let options = eframe::NativeOptions {
@@ -37,6 +206,80 @@ fn main() {
         }),
     )
     .expect("developi failed to start.");
+}
+
+// ─── INTERNAL BLOCK VALIDATOR – TESTS EVERY BLOCK ───────────────
+fn validate_all_blocks() {
+    println!("🔍 developi 1.0 Block Validator\n");
+
+    let registry = blocks::BlockRegistry::new();
+    let all_blocks = registry.all_blocks().to_vec();
+
+    println!("📦 Testing {} blocks...\n", all_blocks.len());
+
+    let mut passed = 0;
+    let mut failed = 0;
+    let mut failures = Vec::new();
+    let mut port_mismatches = Vec::new();
+
+    for block in &all_blocks {
+        // Build a minimal test canvas for this block (including any needed supporting blocks)
+        let (test_blocks, test_connections) = build_test_canvas(block, &registry);
+
+        let mut engine = engine::PythonEngine::new();
+        let mut block_data: Vec<engine::PlacedBlockData> = test_blocks
+            .iter()
+            .map(|b| engine::PlacedBlockData {
+                id: b.id,
+                definition: b.definition.clone(),
+                input_values: b.input_values.clone(),
+                output_values: vec![],
+            })
+            .collect();
+
+        let result = engine.execute_dataflow(&mut block_data, &test_connections);
+        let has_error = result.iter().any(|l| l.contains("✗ Error"));
+
+        if has_error {
+            failed += 1;
+            let err = result.iter().find(|l| l.contains("✗ Error")).unwrap().clone();
+            println!("❌ [{}] {} — {}", block.category, block.name, err);
+            failures.push((block.name.clone(), block.category.clone(), err));
+        } else {
+            // Optional port‑count check
+            let output_count = block_data.iter().find(|b| b.id == 100).map(|b| b.output_values.len()).unwrap_or(0);
+            let expected = block.outputs.len();
+            if output_count != expected && expected > 1 {
+                port_mismatches.push(format!(
+                    "⚠️  [{}] {} — {} ports expected, {} produced: {:?}",
+                    block.category, block.name, expected, output_count,
+                    block_data.iter().find(|b| b.id == 100).map(|b| &b.output_values).unwrap_or(&vec![])
+                ));
+            }
+            passed += 1;
+        }
+    }
+
+    println!("\n══════════════════════════════════");
+    println!("📊 RESULTS: ✅ {} passed | ❌ {} failed", passed, failed);
+    println!("⏭️  0 skipped (all blocks tested)");
+    println!("══════════════════════════════════");
+
+    if !port_mismatches.is_empty() {
+        println!("\n── Port Mismatches (non‑fatal) ──");
+        for p in &port_mismatches { println!("{}", p); }
+    }
+
+    if !failures.is_empty() {
+        println!("\n── Failed Blocks ──");
+        for (name, cat, err) in &failures {
+            println!("  [{}] {} — {}", cat, name, err);
+        }
+    }
+
+    if failed == 0 {
+        println!("\n🎉 ALL BLOCKS VALIDATED!");
+    }
 }
 
 pub struct DevelopiApp {
@@ -138,8 +381,9 @@ impl DevelopiApp {
                         self.console_output.push("✅ No wiring issues found.".into());
                         self.status_message = "All connections look good!".into();
                     } else {
-                        let fixed: Vec<canvas::Connection> = conns.iter().map(|c| canvas::Connection {
-                            id: 0, from_block: c.from_block, from_port_index: c.from_port_index,
+                        let fixed: Vec<canvas::Connection> = conns.iter().enumerate().map(|(i, c)| canvas::Connection {
+                            id: i as u64 + 1,
+                            from_block: c.from_block, from_port_index: c.from_port_index,
                             to_block: c.to_block, to_port_index: c.to_port_index,
                         }).collect();
                         self.canvas.set_connections(&fixed);
@@ -152,6 +396,7 @@ impl DevelopiApp {
                 ui.separator();
 
                 if ui.button("▶ Run All").clicked() {
+                    self.is_running = true;
                     self.status_message = "Executing...".into();
                     let canvas_conns = self.canvas.get_connections();
                     let blocks = self.canvas.get_blocks_data();
@@ -161,8 +406,9 @@ impl DevelopiApp {
                     }).collect();
                     let fix_messages = self.python_engine.auto_fix_connections(&blocks, &mut conns);
                     if !fix_messages.is_empty() {
-                        let fixed: Vec<canvas::Connection> = conns.iter().map(|c| canvas::Connection {
-                            id: 0, from_block: c.from_block, from_port_index: c.from_port_index,
+                        let fixed: Vec<canvas::Connection> = conns.iter().enumerate().map(|(i, c)| canvas::Connection {
+                            id: i as u64 + 1,
+                            from_block: c.from_block, from_port_index: c.from_port_index,
                             to_block: c.to_block, to_port_index: c.to_port_index,
                         }).collect();
                         self.canvas.set_connections(&fixed);
@@ -174,6 +420,7 @@ impl DevelopiApp {
                     self.console_output.extend(output);
                     self.console_output.push("── Complete ──".into());
                     self.canvas.reset_execution_state();
+                    self.is_running = false;
                     self.status_message = "Ready".into();
                 }
 
@@ -181,6 +428,7 @@ impl DevelopiApp {
                     self.status_message = "Execution stopped.".into();
                     self.console_output.push("⏹ Execution stopped by user.".into());
                     self.canvas.reset_execution_state();
+                    self.is_running = false;
                 }
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -191,27 +439,22 @@ impl DevelopiApp {
         });
     }
 
-    // ─── OPEN PROJECT ──────────────────────────
-
     fn open_project(&mut self, path: &std::path::PathBuf) {
         let path_str = path.display().to_string();
         match project::Project::load(path) {
             Ok(loaded) => {
                 self.canvas.clear_all();
                 
-                // Step 1: Restore blocks with original IDs
                 for snap in &loaded.blocks {
                     if let Some(def) = self.block_registry.find_block(&snap.block_name) {
                         self.canvas.add_block_with_id(def.clone(), snap.id);
                     }
                 }
                 
-                // Step 2: Restore positions FIRST
                 for snap in &loaded.blocks {
                     self.canvas.set_block_position(snap.id, snap.position_x, snap.position_y);
                 }
                 
-                // Step 3: Restore input values SECOND
                 for snap in &loaded.blocks {
                     if let Some(ref code) = snap.custom_code {
                         if let Ok(vals) = serde_json::from_str::<Vec<String>>(code) {
@@ -220,7 +463,6 @@ impl DevelopiApp {
                     }
                 }
                 
-                // Step 4: Restore connections LAST
                 if !loaded.connections.is_empty() {
                     self.canvas.restore_connections(&loaded.connections);
                 }
@@ -236,8 +478,6 @@ impl DevelopiApp {
             }
         }
     }
-
-    // ─── SAVE PROJECT ──────────────────────────
 
     fn save_project(&mut self) {
         let path = self.project_path.clone().unwrap_or_else(|| "project.dev".to_string());

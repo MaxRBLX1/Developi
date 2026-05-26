@@ -19,7 +19,7 @@ pub struct WorkshopSensory {
     block_place_count: u64,
     execution_count: u64,
     pub current_mood: WorkshopMood,
-    settings: SensorySettings,
+    pub settings: SensorySettings,  // Make pub so main.rs can access
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -79,6 +79,15 @@ impl WorkshopSensory {
             current_mood: WorkshopMood::Idle,
             settings: SensorySettings::default(),
         }
+    }
+
+    // ADD THESE METHODS HERE (inside the impl block)
+    pub fn get_master_volume(&self) -> f32 {
+        self.settings.master_volume
+    }
+
+    pub fn is_muted(&self) -> bool {
+        self.settings.muted
     }
 
     /// Load user's sound settings
@@ -148,8 +157,6 @@ impl WorkshopSensory {
     pub fn play_startup(&self) {
         info!("🔔 developi workshop opened");
         if !self.settings.muted {
-            // Play a short synthesized chime if no custom sound
-            // (rodio can generate tones — we use a simple approach)
             info!("   Uptime tracking started");
         }
     }
